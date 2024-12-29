@@ -134,11 +134,11 @@ class Agent:
         return 0
 
     def act(self, step: int, obs, remainingOverageTime: int = 60):
-        # Save and reload every 95 steps
+        # Save every 95 steps
+        path_prefix = f"/content/iaxul/saved_weights/"
+        self.reload_weights(path_prefix)
         self.step_counter += 1
         if self.step_counter % 95 == 0:
-            path_prefix = f"/content/iaxul/saved_weights/"
-            self.reload_weights(path_prefix)
             self.save_weights(path_prefix)
 
         unit_mask = np.array(obs["units_mask"][self.team_id])  # shape (max_units, )
