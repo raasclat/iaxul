@@ -10,14 +10,15 @@ import logging
 # Hyperparameters
 GAMMA = 0.99
 TAU = 0.95  # for GAE (Generalized Advantage Estimation)
-LR = 1e-4    # Learning rate
+LR = 1e-4  # Learning rate
 EPSILON = 0.2  # PPO Clipping parameter
 BATCH_SIZE = 64
 UPDATE_STEPS = 5  # Number of policy updates after each set of experiences
 ADVANTAGE_NORMALIZE = True  # Normalize advantage for stability
 
 # Set up logging configuration
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
+
 
 class Agent:
     def __init__(self, player: str, env_cfg):
@@ -32,20 +33,20 @@ class Agent:
         self.discovered_relic_nodes_ids = set()
         self.unit_explore_locations = dict()
 
-        # Initialize male and female NNs
-        self.male_nn = self.load_nn(r"/content/iaxul/models/male_nn.pth")
-        self.female_nn = self.load_nn(r"/content/iaxul/models/female_nn.pth")
-        
-        # Initialize the PPO networks (actor and critic for male and female)
-        self.male_actor = self.load_nn(r"/content/iaxul/models/male_actor.pth")
-        self.female_actor = self.load_nn(r"/content/iaxul/models/female_actor.pth")
-        
-        self.male_critic = self.load_nn(r"/content/iaxul/models/male_critic.pth")
-        self.female_critic = self.load_nn(r"/content/iaxul/models/female_critic.pth")
+        # Initialize PPO networks for males and females
+        self.male_actor = self.initialize_network(input_size=10, output_size=6)
+        self.female_actor = self.initialize_network(input_size=10, output_size=6)
+
+        self.male_critic = self.initialize_network(input_size=10, output_size=1)
+        self.female_critic = self.initialize_network(input_size=10, output_size=1)
 
         # Optimizers for the PPO networks
-        self.male_optimizer = optim.Adam(list(self.male_actor.parameters()) + list(self.male_critic.parameters()), lr=LR)
-        self.female_optimizer = optim.Adam(list(self.female_actor.parameters()) + list(self.female_critic.parameters()), lr=LR)
+        self.male_optimizer = optim.Adam(
+            list(self.male_actor.parameters()) + list(self.male_critic.parameters()), lr=LR
+        )
+        self.female_optimizer = optim.Adam(
+            list(self.female_actor.parameters()) + list(self.female_critic.parameters()), lr=LR
+        )
 
         # Replay buffer
         self.memory = deque(maxlen=10000)
@@ -53,7 +54,7 @@ class Agent:
         # Step counter for saving and reloading
         self.step_counter = 0
 
-    def load_nn(self, model_path):
+    def initialize_network(self, input_size, output_size):
         class SimpleNN(nn.Module):
             def __init__(self, input_size, output_size):
                 super(SimpleNN, self).__init__()
@@ -61,19 +62,14 @@ class Agent:
                 self.fc2 = nn.Linear(16, 8)
                 self.fc3 = nn.Linear(8, output_size)
                 self.relu = nn.ReLU()
-                self.softmax = nn.Softmax(dim=1)
 
             def forward(self, x):
                 x = self.relu(self.fc1(x))
                 x = self.relu(self.fc2(x))
-                x = self.softmax(self.fc3(x))
+                x = self.fc3(x)
                 return x
 
-        model = SimpleNN(input_size=10, output_size=6)
-        state_dict = torch.load(model_path, map_location=torch.device("cpu"), weights_only=True)
-        model.load_state_dict(state_dict)
-        model.eval()  # Set to evaluation mode
-        return model
+        return SimpleNN(input_size, output_size)
 
     def save_weights(self, path_prefix):
         torch.save(self.male_actor.state_dict(), f"{path_prefix}_male_actor.pth")
@@ -130,6 +126,13 @@ class Agent:
 
         return features
 
+    def calculate_reward(self, unit_type, unit_energy, closest_enemy_dist, closest_relic_dist, energy_used, points_gained):
+        if unit_type == "male":
+            return points_gained - energy_used + (1 / (1 + closest_enemy_dist))
+        elif unit_type == "female":
+            return points_gained + (1 / (1 + closest_relic_dist)) - energy_used
+        return 0
+
     def act(self, step: int, obs, remainingOverageTime: int = 60):
         # Save and reload every 95 steps
         self.step_counter += 1
@@ -148,14 +151,14 @@ class Agent:
         actions = np.zeros((self.env_cfg["max_units"], 3), dtype=int)
 
         features = self.process_observation(
-            obs, 
-            unit_mask, 
-            unit_positions, 
-            unit_energys, 
-            observed_relic_node_positions, 
-            observed_relic_nodes_mask, 
-            team_points, 
-            step, 
+            obs,
+            unit_mask,
+            unit_positions,
+            unit_energys,
+            observed_relic_node_positions,
+            observed_relic_nodes_mask,
+            team_points,
+            step,
             max_steps=self.env_cfg["max_steps_in_match"]
         )
 
@@ -170,11 +173,11 @@ class Agent:
             is_male = unit_energy > 50
 
             if is_male:
-                male_output = self.male_nn(input_tensor)
+                male_output = self.male_actor(input_tensor)
                 predicted_action = torch.argmax(male_output).item()
                 actions[unit_id] = [predicted_action, 0, 0]
             else:
-                female_output = self.female_nn(input_tensor)
+                female_output = self.female_actor(input_tensor)
                 predicted_action = torch.argmax(female_output).item()
                 actions[unit_id] = [predicted_action, 0, 0]
 
