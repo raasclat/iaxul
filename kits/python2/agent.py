@@ -19,7 +19,6 @@ ADVANTAGE_NORMALIZE = True  # Normalize advantage for stability
 # Set up logging configuration
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
 
-
 class Agent:
     def __init__(self, player: str, env_cfg):
         self.player = player
@@ -51,8 +50,8 @@ class Agent:
         # Replay buffer
         self.memory = deque(maxlen=10000)
 
-        # Step counter for saving and reloading
-        self.step_counter = 0
+        # Load saved weights once at the start
+        self.load_initial_weights()
 
     def initialize_network(self, input_size, output_size):
         class SimpleNN(nn.Module):
@@ -78,12 +77,16 @@ class Agent:
         torch.save(self.female_critic.state_dict(), f"{path_prefix}_female_critic.pth")
         logging.info(f"Saved weights to {path_prefix}_*.pth")
 
-    def reload_weights(self, path_prefix):
-        self.male_actor.load_state_dict(torch.load(f"{path_prefix}_male_actor.pth"))
-        self.male_critic.load_state_dict(torch.load(f"{path_prefix}_male_critic.pth"))
-        self.female_actor.load_state_dict(torch.load(f"{path_prefix}_female_actor.pth"))
-        self.female_critic.load_state_dict(torch.load(f"{path_prefix}_female_critic.pth"))
-        logging.info(f"Reloaded weights from {path_prefix}_*.pth")
+    def load_initial_weights(self):
+        path_prefix = f"/content/iaxul/saved_weights/"
+        try:
+            self.male_actor.load_state_dict(torch.load(f"{path_prefix}_male_actor.pth"))
+            self.male_critic.load_state_dict(torch.load(f"{path_prefix}_male_critic.pth"))
+            self.female_actor.load_state_dict(torch.load(f"{path_prefix}_female_actor.pth"))
+            self.female_critic.load_state_dict(torch.load(f"{path_prefix}_female_critic.pth"))
+            logging.info(f"Loaded weights from {path_prefix}_*.pth")
+        except FileNotFoundError as e:
+            logging.warning(f"Could not load weights: {e}")
 
     def process_observation(self, obs, unit_mask, unit_positions, unit_energys, observed_relic_node_positions, observed_relic_nodes_mask, team_points, step, max_steps):
         features = []
@@ -134,13 +137,6 @@ class Agent:
         return 0
 
     def act(self, step: int, obs, remainingOverageTime: int = 60):
-        # Save every 95 steps
-        path_prefix = f"/content/iaxul/saved_weights/"
-        self.reload_weights(path_prefix)
-        self.step_counter += 1
-        if self.step_counter % 95 == 0:
-            self.save_weights(path_prefix)
-
         unit_mask = np.array(obs["units_mask"][self.team_id])  # shape (max_units, )
         unit_positions = np.array(obs["units"]["position"][self.team_id])  # shape (max_units, 2)
         unit_energys = np.array(obs["units"]["energy"][self.team_id])  # shape (max_units, 1)
