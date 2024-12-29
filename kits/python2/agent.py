@@ -138,8 +138,8 @@ class Agent:
         self.step_counter += 1
         if self.step_counter % 95 == 0:
             path_prefix = f"/content/iaxul/saved_weights/"
-            self.save_weights(path_prefix)
             self.reload_weights(path_prefix)
+            self.save_weights(path_prefix)
 
         unit_mask = np.array(obs["units_mask"][self.team_id])  # shape (max_units, )
         unit_positions = np.array(obs["units"]["position"][self.team_id])  # shape (max_units, 2)
