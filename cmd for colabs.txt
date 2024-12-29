@@ -1,0 +1,1 @@
+!python iaxul/src/luxai_runner/cli.py iaxul/kits/python/main.py iaxul/kits/python2/main.py --output=replay.html
