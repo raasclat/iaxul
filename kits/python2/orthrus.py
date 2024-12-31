@@ -377,9 +377,9 @@ def evaluate_agents(agent_1_cls, agent_2_cls, seed=42, training=True, games_to_p
             step += 1
 
     env.close()
-    #if training:
-    player_0.save_model()
-    player_1.save_model()
+    if training:
+        player_0.save_model()
+        player_1.save_model()
 
 # Training
 #evaluate_agents(Agent, Agent, training=True, games_to_play=50) # 250*5
