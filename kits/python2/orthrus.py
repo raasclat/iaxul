@@ -383,7 +383,7 @@ def evaluate_agents(agent_1_cls, agent_2_cls, seed=42, training=True, games_to_p
     player_1.save_model()
 
 # Training
-evaluate_agents(Agent, Agent, training=True, games_to_play=50) # 250*5
+#evaluate_agents(Agent, Agent, training=True, games_to_play=50) # 250*5
 
 # Evaluation
 #evaluate_agents(Agent, Agent, training=False, games_to_play=5)
