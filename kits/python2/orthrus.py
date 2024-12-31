@@ -88,7 +88,7 @@ class Agent:
         self.femaleoptimizer = optim.Adam(self.femaleactor.parameters(), lr=self.learning_rate)
         self.memory = ReplayBuffer(10000)
         
-        if not training:
+        if training:
             self.load_model()
             self.epsilon = 0.0
 
@@ -268,11 +268,11 @@ class Agent:
             'femalecritic': self.femalecritic.state_dict(),
             'maleoptimizer': self.maleoptimizer.state_dict(),
             'femaleoptimizer': self.femaleoptimizer.state_dict()
-        }, f'dqn_model_{self.player}.pth')
+        }, f'/content/iaxul/kits/python2/dqn_model_{self.player}.pth')
 
     def load_model(self):
         try:
-            checkpoint = torch.load(f'dqn_model_{self.player}.pth')
+            checkpoint = torch.load(f'/content/iaxul/kits/python2/dqn_model_{self.player}.pth')
             self.maleactor.load_state_dict(checkpoint['maleactor'])
             self.femaleactor.load_state_dict(checkpoint['femaleactor'])
             self.malecritic.load_state_dict(checkpoint['malecritic'])
